@@ -4,7 +4,8 @@ from fastapi import WebSocket
 from starlette.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
-from apps.jwt import get_current_user_email
+from apps.jwt import get_current_user_email, CREDENTIALS_EXCEPTION, get_current_user_name
+from starlette.datastructures import URL
 from connection import ConnectionManager
 
 from apps.api import api_app
@@ -35,20 +36,12 @@ async def root():
 manager = ConnectionManager()
 
 
-@app.get("/{room_name}/{user_name}")
-async def get(request: Request, room_name, user_name):
-    return templates.TemplateResponse(
-        "chat-room.html",
-        {"request": request, "room_name": room_name, "user_name": user_name},
-    )
-
 
 @app.websocket("/ws/{room_name}")
 async def websocket_endpoint(
-    websocket: WebSocket, room_name, background_tasks: BackgroundTasks
+    websocket: WebSocket, room_name, background_tasks: BackgroundTasks,
 ):
     await manager.connect(websocket, room_name)
-    print(websocket, room_name)
     try:
         while True:
             data = await websocket.receive_text()
@@ -127,9 +120,25 @@ async def token(request: Request):
         });'>
 Refresh
 </button> 
-            </div>
+
+
+
+        </div>
                 
             ''')
+
+@app.get("/{room_name}/{user_name}")
+async def room(request: Request, room_name:int, user_name:str, token_name: str = Depends(get_current_user_name)):
+    first_name = token_name.split()[0]
+    print(first_name, user_name, room_name)
+    if user_name.lower() != first_name.lower():
+        print('name not matched')
+        raise CREDENTIALS_EXCEPTION
+
+    return templates.TemplateResponse(
+        "chat-room.html",
+        {"request": request, "room_name": room_name, "user_name": user_name},
+    )
 
 @app.exception_handler(404)
 async def custom_404_handler(_, __):
@@ -137,4 +146,5 @@ async def custom_404_handler(_, __):
 
 if __name__ == '__main__':
     uvicorn.run(app, port=7000)
+
 

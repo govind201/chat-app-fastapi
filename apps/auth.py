@@ -10,12 +10,10 @@ from starlette.responses import JSONResponse
 
 from apps.jwt import create_token
 from apps.jwt import CREDENTIALS_EXCEPTION
-from apps.jwt import valid_email_from_db
 from apps.jwt import create_refresh_token
 from apps.jwt import decode_token
 from datetime import datetime
 from fastapi.responses import RedirectResponse
-from .jwt import FAKE_DB
 
 
 # Create the auth app
@@ -62,15 +60,15 @@ async def auth(request: Request):
         raise CREDENTIALS_EXCEPTION
     user_data = await oauth.google.parse_id_token(request, access_token)
     
+    # can add logic to check email in db
     # if not valid_email_from_db(user_data['email']):
-    #     print(user_data.email)
-    #     print('Not a valid email in fake db')
     #     raise CREDENTIALS_EXCEPTION
         
     return JSONResponse({
         'result': True,
-        'access_token': create_token(user_data['email']),
-        'refresh_token': create_refresh_token(user_data['email']),
+        'access_token': create_token(user_data['email'], user_data['name']),
+        'refresh_token': create_refresh_token(user_data['email'], user_data['name']),
+        'data': user_data
     })
     # return JSONResponse({'result':'failed because not in db', 'google_data': user_data, })
     raise CREDENTIALS_EXCEPTION

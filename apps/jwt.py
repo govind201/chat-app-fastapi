@@ -8,12 +8,6 @@ from fastapi import HTTPException
 from fastapi import status
 from fastapi.security import OAuth2PasswordBearer
 
-# Create a fake db:
-FAKE_DB = {
-    'bletsblets9@gmail.com': {'name': 'Govind Singh'}, 
-    'gs5818475@gmail.com': {'name': 'Govind Singh'}, 
-    'gs5818475@gmail.com': {'name': 'Govind Singh'}, 
-}
 
 
 # Helper to read numbers using var envs
@@ -58,14 +52,13 @@ def create_access_token(*, data: dict, expires_delta: timedelta = None):
 
 
 # Create token for an email
-def create_token(email):
+def create_token(email, user_name):
     access_token_expires = timedelta(minutes=API_ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(data={'sub': email}, expires_delta=access_token_expires)
+    access_token = create_access_token(data={'sub': email, 'name': user_name}, expires_delta=access_token_expires)
     return access_token
 
 
-def valid_email_from_db(email):
-    return email in FAKE_DB
+
 
 
 async def get_current_user_email(token: str = Depends(oauth2_scheme)):
@@ -77,21 +70,26 @@ async def get_current_user_email(token: str = Depends(oauth2_scheme)):
     except jwt.PyJWTError:
         raise CREDENTIALS_EXCEPTION
 
-    if valid_email_from_db(email):
-        return email
+    return email
 
-    raise CREDENTIALS_EXCEPTION
+async def get_current_user_name(token: str = Depends(oauth2_scheme)):
+    try:
+        payload = decode_token(token)
+        name: str = payload.get('name')
+        if name is None:
+            raise CREDENTIALS_EXCEPTION
+    except jwt.PyJWTError:
+        raise CREDENTIALS_EXCEPTION
 
-async def get_current_user_token(token: str = Depends(oauth2_scheme)):
-    _ = get_current_user_email(token)
-    return token
+    return name
+
 
 REFRESH_TOKEN_EXPIRE_MINUTES = 60 * 24 * 30
 
 
-def create_refresh_token(email):
+def create_refresh_token(email, name):
     expires = timedelta(minutes=REFRESH_TOKEN_EXPIRE_MINUTES)
-    return create_access_token(data={'sub': email}, expires_delta=expires)
+    return create_access_token(data={'sub': email, 'name': name}, expires_delta=expires)
 
 def decode_token(token):
     return jwt.decode(token, API_SECRET_KEY, algorithms=[API_ALGORITHM])
